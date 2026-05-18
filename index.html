@@ -327,9 +327,13 @@ main{display:flex;flex:1;overflow:hidden}
   </div>
   <div class="hbtns">
     <!-- Language toggle -->
-    <div style="display:flex;gap:0;background:var(--bg);border:1px solid var(--brd);border-radius:4px;overflow:hidden">
-      <button class="lang-btn htab on" data-lang="de" onclick="setLang('de')" style="padding:4px 8px;font-size:9px">DE</button>
-      <button class="lang-btn htab" data-lang="en" onclick="setLang('en')" style="padding:4px 8px;font-size:9px">EN</button>
+    <div style="display:flex;gap:0;background:var(--bg);border:1px solid var(--brd);border-radius:5px;overflow:hidden;flex-shrink:0">
+      <button class="lang-btn" data-lang="de" onclick="setLang('de')"
+        style="padding:5px 9px;border:none;cursor:pointer;font-family:var(--font-sans);font-size:9px;font-weight:700;letter-spacing:.05em;background:transparent;color:var(--t2);transition:all .12s"
+        id="langbtn-de">DE</button>
+      <button class="lang-btn" data-lang="en" onclick="setLang('en')"
+        style="padding:5px 9px;border:none;cursor:pointer;font-family:var(--font-sans);font-size:9px;font-weight:700;letter-spacing:.05em;background:transparent;color:var(--t2);transition:all .12s"
+        id="langbtn-en">EN</button>
     </div>
     <button class="hb" onclick="toggleMock()">📱</button>
     <button class="hb" onclick="undo()">↩</button>
@@ -368,8 +372,8 @@ main{display:flex;flex:1;overflow:hidden}
     <div class="rs" id="rs"></div>
     <div class="bb">
       <div class="br">
-        <button class="bbt" onclick="copyImg()">Kopieren</button>
-        <button class="bbt" onclick="savePreset()">💾 Preset</button>
+        <button class="bbt" onclick="copyImg()" id="bbt-copy">Copy</button>
+        <button class="bbt" onclick="savePreset()" id="bbt-preset">💾 Preset</button>
       </div>
       <div class="br">
         <button class="bbt" id="dlAll" style="display:none" onclick="dlAllSlides()">↓ Alle</button>
@@ -540,17 +544,21 @@ function setLang(l){
   refreshMobPanel();
 }
 function applyI18nUI(){
-  // Header labels
-  const qs = (id,val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
+  const qs=(id,val)=>{ const el=document.getElementById(id); if(el)el.textContent=val; };
   qs('logo-sub-el', t('appSub'));
   qs('mtab-lbl-preview', t('mobPreview'));
   qs('mtab-lbl-templates', t('mobTemplates'));
   qs('mtab-lbl-colors', t('mobColors'));
   qs('mtab-lbl-edit', t('mobEdit'));
   qs('mtab-lbl-export', t('mobExport'));
-  // Lang toggle indicator
-  document.querySelectorAll('.lang-btn').forEach(b => {
-    b.classList.toggle('on', b.dataset.lang === LANG);
+  qs('bbt-copy', t('copy'));
+  // Lang button active state
+  ['de','en'].forEach(l=>{
+    const btn=document.getElementById('langbtn-'+l);
+    if(!btn)return;
+    const on=l===LANG;
+    btn.style.background=on?'var(--t1)':'transparent';
+    btn.style.color=on?'var(--bg)':'var(--t2)';
   });
 }
 
@@ -697,11 +705,12 @@ const S = {
   mode:'single', tpl:'d-cover', cp:'fd-amber', font:'montserrat',
   photo:null, _thumbSrc:null,
   photoX:0, photoY:0, photoScale:1.0,
-  screenPhoto:null, screenX:0, screenY:0, // for l-screen screenshot mode
+  screenPhoto:null, screenX:0, screenY:0,
   op:0.55, grain:true, mock:false,
   h1c:'white', h2c:'accent',
+  showNum:true, customNum:'',   // slide number: show toggle + optional custom text
   texts: defTexts('d-cover'),
-  slides:[{tpl:'d-cover', cp:'fd-amber', photo:null, photoX:0, photoY:0, photoScale:1.0, screenPhoto:null, screenX:0, screenY:0, op:0.55, grain:true, h1c:'white', h2c:'accent', font:'montserrat', texts:defTexts('d-cover')}],
+  slides:[{tpl:'d-cover', cp:'fd-amber', photo:null, photoX:0, photoY:0, photoScale:1.0, screenPhoto:null, screenX:0, screenY:0, op:0.55, grain:true, h1c:'white', h2c:'accent', font:'montserrat', showNum:true, customNum:'', texts:defTexts('d-cover')}],
   cur:0, hist:[],
   _drag:null,
 };
@@ -834,22 +843,27 @@ function render(cv, st){
 
   // Slide number + brand label
   const tn=TPLS.find(x=>x.id===st.tpl);
+  const numText = st.customNum ? st.customNum : (tn?.n||'01');
   if(!light){
     const brandLum=sh?sampleLum(ctx,PAD,40,500,50):0;
     const brandCol=sh?contrastSafe(p.mu,brandLum):p.mu;
-    ctx.font=`700 44px ${f}`; ctx.fillStyle=brandCol;
-    ctx.fillText(tn?.n||'01',W-PAD-ctx.measureText(tn?.n||'01').width,80);
+    if(st.showNum!==false){
+      ctx.font=`700 44px ${f}`; ctx.fillStyle=brandCol;
+      ctx.fillText(numText,W-PAD-ctx.measureText(numText).width,80);
+    }
     ctx.font=`700 26px ${f}`; ctx.fillStyle=brandCol;
     ctx.fillText(t.brand||'FOUNDER. FOCUS. FUEL.',PAD,76);
     ctx.fillStyle=p.acc; ctx.fillRect(PAD,84,42,3);
   } else {
-    const nn=tn?.n||'L1';
-    ctx.beginPath();ctx.arc(PAD+22,60,22,0,Math.PI*2);ctx.fillStyle=p.hl;ctx.fill();
-    ctx.font=`700 22px ${f}`; ctx.fillStyle=p.bg;
-    ctx.fillText(nn,PAD+(nn.length>2?8:14),67);
+    if(st.showNum!==false){
+      ctx.beginPath();ctx.arc(PAD+22,60,22,0,Math.PI*2);ctx.fillStyle=p.hl;ctx.fill();
+      ctx.font=`700 ${numText.length>2?18:22}px ${f}`; ctx.fillStyle=p.bg;
+      const nw=ctx.measureText(numText).width;
+      ctx.fillText(numText,PAD+22-nw/2,67);
+    }
     ctx.font=`500 24px ${f}`; ctx.fillStyle=p.mu;
-    ctx.fillText(t.brand||'A DAY IN MY LIFE',PAD+60,65);
-    ctx.fillStyle=p.acc; ctx.fillRect(PAD+60,73,50,2);
+    ctx.fillText(t.brand||'A DAY IN MY LIFE',PAD+(st.showNum!==false?60:0),65);
+    ctx.fillStyle=p.acc; ctx.fillRect(PAD+(st.showNum!==false?60:0),73,50,2);
   }
 
   // ── DARK TEMPLATES
@@ -861,9 +875,9 @@ function render(cv, st){
       l1.forEach(l=>{const sz=hl(l,PAD,y,f,'900',155,W-PAD*2,colForP(st.h1c,p));y+=Math.round(sz*1.06)+4;});
       l2.forEach(l=>{const sz=hl(l,PAD,y,f,'900',155,W-PAD*2,colForP(st.h2c,p));y+=Math.round(sz*1.06)+4;});
       y+=30;
-      (t.sub||'').split('\n').forEach(l=>{tx(l,PAD,y,`700 38px ${f}`,p.hl);y+=60;});
+      ( tx.sub||'').split('\n').forEach(l=>{tx(l,PAD,y,`700 38px ${f}`,p.hl);y+=60;});
       y+=30;
-      (t.bdy||'').split('\n').forEach(l=>{tx(l,PAD,y,`400 36px ${f}`,p.mu);y+=55;});
+      ( tx.bdy||'').split('\n').forEach(l=>{tx(l,PAD,y,`400 36px ${f}`,p.mu);y+=55;});
       if(t.cta){tx(t.cta,PAD,H-70,`700 32px ${f}`,p.mu);}
       break;
     }
@@ -873,7 +887,7 @@ function render(cv, st){
       wrapLines(ctx,t.hl1||'ECHTER',`900 100px ${f}`,W-PAD*2).forEach(l=>{const sz=hl(l,PAD,y,f,'900',100,W-PAD*2,colForP(st.h1c,p));y+=Math.round(sz*1.1)+4;});
       wrapLines(ctx,t.hl2||'CONTENT.',`900 100px ${f}`,W-PAD*2).forEach(l=>{const sz=hl(l,PAD,y,f,'900',100,W-PAD*2,colForP(st.h2c,p));y+=Math.round(sz*1.1)+4;});
       ctx.fillStyle=p.acc;ctx.fillRect(PAD,y+16,58,3);y+=70;
-      (t.sub||'').split('\n').forEach(l=>{tx(l,PAD,y,`500 34px ${f}`,p.hl);y+=58;});
+      ( tx.sub||'').split('\n').forEach(l=>{tx(l,PAD,y,`500 34px ${f}`,p.hl);y+=58;});
       if(t.cta){tx(t.cta,PAD,H-70,`700 32px ${f}`,p.mu);}
       break;
     }
@@ -882,7 +896,7 @@ function render(cv, st){
       wrapLines(ctx,t.hl1||'MEINE',`900 120px ${f}`,W-PAD*2).forEach(l=>{const sz=hl(l,PAD,y,f,'900',120,W-PAD*2,colForP(st.h1c,p));y+=Math.round(sz*1.08)+4;});
       wrapLines(ctx,t.hl2||'SÄULEN.',`900 120px ${f}`,W-PAD*2).forEach(l=>{const sz=hl(l,PAD,y,f,'900',120,W-PAD*2,colForP(st.h2c,p));y+=Math.round(sz*1.08)+4;});
       ctx.fillStyle=p.acc;ctx.fillRect(PAD,y+8,58,3);y+=64;
-      (t.sub||'').split('\n').filter(Boolean).forEach((row,i)=>{
+      ( tx.sub||'').split('\n').filter(Boolean).forEach((row,i)=>{
         const[nm,ds]=row.split('|');
         const iy=y+i*205;
         ctx.beginPath();ctx.arc(PAD+27,iy+16,25,0,Math.PI*2);ctx.strokeStyle=p.acc;ctx.lineWidth=2.5;ctx.stroke();
@@ -899,7 +913,7 @@ function render(cv, st){
       wrapLines(ctx,t.hl1||'SO SIEHT',`900 108px ${f}`,W-PAD*2).forEach(l=>{const sz=hl(l,PAD,y,f,'900',108,W-PAD*2,colForP(st.h1c,p));y+=Math.round(sz*1.08)+4;});
       wrapLines(ctx,t.hl2||'MEIN TAG AUS.',`900 108px ${f}`,W-PAD*2).forEach(l=>{const sz=hl(l,PAD,y,f,'900',108,W-PAD*2,colForP(st.h2c,p));y+=Math.round(sz*1.08)+4;});
       ctx.fillStyle=p.acc;ctx.fillRect(PAD,y+8,58,3);y+=65;
-      (t.sub||'').split('\n').filter(Boolean).forEach((sl,i)=>{
+      ( tx.sub||'').split('\n').filter(Boolean).forEach((sl,i)=>{
         const[ti,ac]=sl.split('|');const sy=y+i*130;
         ctx.fillStyle=p.acc+'66';ctx.fillRect(PAD+145,sy-14,2,i<7?130:28);
         ctx.beginPath();ctx.arc(PAD+146,sy,7,0,Math.PI*2);ctx.fillStyle=p.acc;ctx.fill();
@@ -931,7 +945,7 @@ function render(cv, st){
         tx(w.toString(),bx+48,by+66,isA?`900 54px ${f}`:`400 54px ${f}`,isA?p.acc:'#555');
       });
       y+=140;ctx.fillStyle='#2a2a2a';ctx.fillRect(PAD,y,W-PAD*2,2);y+=48;
-      (t.bdy||'').split('\n').forEach(l=>{tx(l,PAD,y,`400 32px ${f}`,p.mu);y+=50;});
+      ( tx.bdy||'').split('\n').forEach(l=>{tx(l,PAD,y,`400 32px ${f}`,p.mu);y+=50;});
       if(t.cta){tx(t.cta,PAD,H-70,`700 32px ${f}`,p.mu);}
       break;
     }
@@ -940,7 +954,7 @@ function render(cv, st){
       wrapLines(ctx,t.hl1||'MEIN FUEL',`900 125px ${f}`,W-PAD*2).forEach(l=>{const sz=hl(l,PAD,y,f,'900',125,W-PAD*2,colForP(st.h1c,p));y+=Math.round(sz*1.08)+4;});
       wrapLines(ctx,t.hl2||'FÜR FOKUS.',`900 125px ${f}`,W-PAD*2).forEach(l=>{const sz=hl(l,PAD,y,f,'900',125,W-PAD*2,colForP(st.h2c,p));y+=Math.round(sz*1.08)+4;});
       ctx.fillStyle=p.acc;ctx.fillRect(PAD,y+12,58,3);y+=70;
-      (t.sub||'').split('\n').filter(Boolean).forEach((row,i)=>{
+      ( tx.sub||'').split('\n').filter(Boolean).forEach((row,i)=>{
         const[nm,ds]=row.split('|');const iy=y+i*158;
         ctx.beginPath();ctx.arc(PAD+21,iy+7,19,0,Math.PI*2);ctx.strokeStyle=p.acc;ctx.lineWidth=2;ctx.stroke();
         tx('✓',PAD+12,iy+14,`700 20px ${f}`,p.acc);
@@ -955,7 +969,7 @@ function render(cv, st){
       wrapLines(ctx,t.hl1||'KOMM MIT AUF',`900 108px ${f}`,W-PAD*2).forEach(l=>{const sz=hl(l,PAD,y,f,'900',108,W-PAD*2,colForP(st.h1c,p));y+=Math.round(sz*1.08)+4;});
       wrapLines(ctx,t.hl2||'DIE JOURNEY.',`900 108px ${f}`,W-PAD*2).forEach(l=>{const sz=hl(l,PAD,y,f,'900',108,W-PAD*2,colForP(st.h2c,p));y+=Math.round(sz*1.08)+4;});
       ctx.fillStyle=p.acc;ctx.fillRect(PAD,y+18,58,3);y+=76;
-      (t.sub||'').split('\n').forEach(l=>{tx(l,PAD,y,`500 36px ${f}`,p.hl);y+=57;});y+=18;
+      ( tx.sub||'').split('\n').forEach(l=>{tx(l,PAD,y,`500 36px ${f}`,p.hl);y+=57;});y+=18;
       if(t.bdy){tx(t.bdy,PAD,y,`500 34px ${f}`,p.mu);y+=75;}
       ctx.font=`900 58px ${f}`;ctx.fillStyle=p.acc;ctx.fillText('→',W-PAD-75,y-38);
       if(t.cta){
@@ -972,7 +986,7 @@ function render(cv, st){
       wrapLines(ctx,t.hl1||'WAS ICH',`900 125px ${f}`,W-PAD*2).forEach(l=>{const sz=hl(l,PAD,y,f,'900',125,W-PAD*2,colForP(st.h1c,p));y+=Math.round(sz*1.08)+4;});
       wrapLines(ctx,t.hl2||'GELERNT HABE.',`900 125px ${f}`,W-PAD*2).forEach(l=>{const sz=hl(l,PAD,y,f,'900',125,W-PAD*2,colForP(st.h2c,p));y+=Math.round(sz*1.08)+4;});
       ctx.fillStyle=p.acc;ctx.fillRect(PAD,y+8,58,3);y+=64;
-      (t.sub||'').split('\n').filter(Boolean).forEach((row,i)=>{
+      ( tx.sub||'').split('\n').filter(Boolean).forEach((row,i)=>{
         const[k,v]=row.split('|');const iy=y+i*125;
         ctx.beginPath();ctx.arc(PAD+21,iy-4,20,0,Math.PI*2);ctx.strokeStyle=p.acc;ctx.lineWidth=2;ctx.stroke();
         tx('✓',PAD+12,iy+4,`700 22px ${f}`,p.acc);
@@ -987,7 +1001,7 @@ function render(cv, st){
       wrapLines(ctx,t.hl1||'REALITÄT',`900 135px ${f}`,W-PAD*2).forEach(l=>{const sz=hl(l,PAD,y,f,'900',135,W-PAD*2,colForP(st.h1c,p));y+=Math.round(sz*1.06)+4;});
       wrapLines(ctx,t.hl2||'STATT ILLUSION.',`900 95px ${f}`,W-PAD*2).forEach(l=>{const sz=hl(l,PAD,y,f,'900',95,W-PAD*2,colForP(st.h2c,p));y+=Math.round(sz*1.06)+4;});
       ctx.fillStyle=p.acc;ctx.fillRect(PAD,y+8,58,3);y+=64;
-      (t.sub||'').split('\n').filter(Boolean).forEach(l=>{tx(l,PAD,y,`400 36px ${f}`,p.mu);y+=68;});
+      ( tx.sub||'').split('\n').filter(Boolean).forEach(l=>{tx(l,PAD,y,`400 36px ${f}`,p.mu);y+=68;});
       if(t.bdy){
         y+=16;ctx.fillStyle=p.acc+'18';ctx.fillRect(PAD,y-8,W-PAD*2,76);
         ctx.strokeStyle=p.acc+'44';ctx.lineWidth=1;ctx.strokeRect(PAD,y-8,W-PAD*2,76);
@@ -1042,7 +1056,7 @@ function render(cv, st){
       ctx.font=`italic 700 120px 'Caveat', cursive`; ctx.fillStyle=p.acc;
       ctx.fillText(t.hl2||'diary',PAD,750);
       lAccLine(PAD,775,80);
-      (t.sub||'Alltag. Ernährung.\nMindset. Aufbau.').split('\n').forEach((l,i)=>{lTx(l,PAD,820+i*50,34,p.mu);});
+      (tx.sub||'Alltag. Ernährung.\nMindset. Aufbau.').split('\n').forEach((l,i)=>{lTx(l,PAD,820+i*50,34,p.mu);});
       // Heart
       ctx.font='80px serif'; ctx.fillText('♡',PAD,1000);
       break;
@@ -1053,7 +1067,7 @@ function render(cv, st){
       lAccLine(PAD,535,60);
       // Checklist
       let cy=620;
-      (t.sub||'').split('\n').filter(Boolean).forEach(row=>{
+      ( tx.sub||'').split('\n').filter(Boolean).forEach(row=>{
         const[ti,ac]=row.split('|');
         lCheck(PAD,cy,ti+(ac?' '+ac:''),true); cy+=70;
       });
@@ -1068,7 +1082,7 @@ function render(cv, st){
       (t.hl1||'COFFEE.').split('\n').forEach(l=>{const sz=lHL(l,PAD,y,115,p.hl);y+=sz*1.1+5;});
       (t.hl2||'FOCUS.\nPLAN.').split('\n').forEach(l=>{const sz=lHL(l,PAD,y,115,p.acc);y+=sz*1.1+5;});
       lAccLine(PAD,y+10,60); y+=55;
-      (t.bdy||'Erst Kaffee,\ndann die Welt\nverändern.').split('\n').forEach(l=>{lTx(l,PAD,y,34,p.mu);y+=52;});
+      (tx.bdy||'Erst Kaffee,\ndann die Welt\nverändern.').split('\n').forEach(l=>{lTx(l,PAD,y,34,p.mu);y+=52;});
       if(t.cta){lTx(t.cta,PAD,H-80,28,p.mu);}
       break;
     }
@@ -1077,14 +1091,14 @@ function render(cv, st){
       lHL(t.hl2||'ON',PAD,500,110,p.hl);
       lAccLine(PAD,525,55);
       let cy=620;
-      (t.sub||'').split('\n').filter(Boolean).forEach(row=>{
+      ( tx.sub||'').split('\n').filter(Boolean).forEach(row=>{
         const[item,done]=row.split('|');
         lCheck(PAD,cy,item,done==='✓'); cy+=72;
       });
       if(t.bdy){
         ctx.fillStyle=p.acc; ctx.fillRect(PAD,cy+20,W-PAD*2,95);
         ctx.font=`700 38px ${f}`; ctx.fillStyle='#fff';
-        const lines=(t.bdy||'').split('\n');
+        const lines=( tx.bdy||'').split('\n');
         lines.forEach((l,i)=>{ctx.fillText(l,PAD+24,cy+65+i*44);});
       }
       break;
@@ -1094,7 +1108,7 @@ function render(cv, st){
       lHL(t.hl2||'SETUP.',PAD,490,130,p.hl);
       lAccLine(PAD,515,55);
       let cy=620;
-      (t.sub||'').split('\n').filter(Boolean).forEach(row=>{
+      ( tx.sub||'').split('\n').filter(Boolean).forEach(row=>{
         const[item,done]=row.split('|');
         lTx('✓',PAD,cy,32,p.acc,'700');
         lTx(item||'',PAD+40,cy,32,p.hl);
@@ -1114,7 +1128,7 @@ function render(cv, st){
       lHL(t.hl1||'',PAD,y,100,p.hl);y+=110;
       lHL(t.hl2||'',PAD,y,100,p.hl);y+=110;
       lAccLine(PAD,y+5,55);y+=55;
-      (t.bdy||'').split('\n').forEach(l=>{lTx(l,PAD,y,34,p.mu);y+=52;});
+      ( tx.bdy||'').split('\n').forEach(l=>{lTx(l,PAD,y,34,p.mu);y+=52;});
       if(t.cta){lTx(t.cta,PAD,H-80,28,p.mu);}
       break;
     }
@@ -1123,7 +1137,7 @@ function render(cv, st){
       (t.hl1||'BEWEGUNG.').split('\n').forEach(l=>{const sz=lHL(l,PAD,y,100,p.hl);y+=sz*1.08+4;});
       (t.hl2||'ENERGIE.\nKLARHEIT.').split('\n').forEach(l=>{const sz=lHL(l,PAD,y,100,p.acc);y+=sz*1.08+4;});
       lAccLine(PAD,y+8,55);y+=60;
-      (t.bdy||'').split('\n').forEach(l=>{lTx(l,PAD,y,36,p.mu);y+=54;});
+      ( tx.bdy||'').split('\n').forEach(l=>{lTx(l,PAD,y,36,p.mu);y+=54;});
       if(t.cta){lTx(t.cta,PAD,H-80,28,p.mu);}
       break;
     }
@@ -1132,7 +1146,7 @@ function render(cv, st){
       lHL(t.hl2||'DAY',PAD,510,120,p.hl);
       lAccLine(PAD,540,55);
       let cy=640;
-      (t.sub||'').split('\n').filter(Boolean).forEach(row=>{
+      ( tx.sub||'').split('\n').filter(Boolean).forEach(row=>{
         const[item,icon]=row.split('|');
         lTx(icon||'☐',PAD,cy,30,p.acc,'700');
         lTx(item||'',PAD+45,cy,32,p.hl);
@@ -1149,7 +1163,7 @@ function render(cv, st){
       lHL(t.hl2||'TALK',PAD,655,140,p.hl);
       lAccLine(PAD,685,55);
       let y=780;
-      (t.bdy||'Es ist nicht immer\nmotivierend.\n\nAber es ist es\nimmer wert.').split('\n').forEach(l=>{lTx(l,PAD,y,36,l?p.mu:p.mu);y+=l?58:28;});
+      (tx.bdy||'Es ist nicht immer\nmotivierend.\n\nAber es ist es\nimmer wert.').split('\n').forEach(l=>{lTx(l,PAD,y,36,l?p.mu:p.mu);y+=l?58:28;});
       ctx.font='100px serif'; ctx.fillStyle=p.acc+'55'; ctx.fillText('♡',PAD,1500);
       break;
     }
@@ -1158,7 +1172,7 @@ function render(cv, st){
       (t.hl1||'3 DINGE,').split('\n').forEach(l=>{const sz=lHL(l,PAD,y,100,p.hl);y+=sz*1.08+4;});
       (t.hl2||'DIE HEUTE\nWICHTIG SIND').split('\n').forEach(l=>{const sz=lHL(l,PAD,y,100,p.hl);y+=sz*1.08+4;});
       lAccLine(PAD,y+8,55);y+=64;
-      (t.sub||'').split('\n').filter(Boolean).forEach((item,i)=>{
+      ( tx.sub||'').split('\n').filter(Boolean).forEach((item,i)=>{
         ctx.beginPath();ctx.arc(PAD+22,y-6,22,0,Math.PI*2);ctx.strokeStyle=p.hl;ctx.lineWidth=1.5;ctx.stroke();
         lTx((i+1).toString(),PAD+14,y,28,p.hl,'700');
         lTx(item,PAD+62,y,32,p.hl);
@@ -1174,7 +1188,7 @@ function render(cv, st){
       lHL(t.hl1||'LEARNINGS',PAD,340,110,p.hl);
       lAccLine(PAD,365,55);
       let y=450;
-      (t.bdy||'').split('\n').forEach(l=>{lTx(l,PAD,y,34,l?p.mu:p.mu);y+=l?54:26;});
+      ( tx.bdy||'').split('\n').forEach(l=>{lTx(l,PAD,y,34,l?p.mu:p.mu);y+=l?54:26;});
       // Arrow decoration
       ctx.font=`italic 400 80px 'Caveat',cursive`; ctx.fillStyle=p.acc+'66'; ctx.fillText('↗',W-200,H-300);
       break;
@@ -1190,7 +1204,7 @@ function render(cv, st){
       ctx.font=`900 130px ${f}`;ctx.fillStyle=p.hl;ctx.textAlign='center';
       ctx.fillText(Math.round(pct*100)+'%',cx,cy+45);ctx.textAlign='left';
       let y=cy+r+80;
-      (t.bdy||'').split('\n').forEach(l=>{lTx(l,PAD,y,32,p.mu);y+=50;});
+      ( tx.bdy||'').split('\n').forEach(l=>{lTx(l,PAD,y,32,p.mu);y+=50;});
       if(t.cta){
         ctx.font=`700 26px ${f}`;ctx.fillStyle=p.mu;
         ctx.fillText(t.cta,PAD,H-100);
@@ -1204,7 +1218,7 @@ function render(cv, st){
       lHL(t.hl2||'DAS MACHE.',PAD,475,100,p.hl);
       lAccLine(PAD,500,55);
       let y=600;
-      (t.bdy||'').split('\n').forEach(l=>{lTx(l,PAD,y,36,l?p.hl:p.mu);y+=l?56:28;});
+      ( tx.bdy||'').split('\n').forEach(l=>{lTx(l,PAD,y,36,l?p.hl:p.mu);y+=l?56:28;});
       break;
     }
     case 'l-evening':{
@@ -1212,7 +1226,7 @@ function render(cv, st){
       lHL(t.hl2||'ROUTINE',PAD,470,110,p.hl);
       lAccLine(PAD,498,55);
       let cy=600;
-      (t.sub||'').split('\n').filter(Boolean).forEach(row=>{
+      ( tx.sub||'').split('\n').filter(Boolean).forEach(row=>{
         const[item]=row.split('|');
         lCheck(PAD,cy,item,true); cy+=72;
       });
@@ -1228,7 +1242,7 @@ function render(cv, st){
       lHL(t.hl1||'SCREEN',PAD,310,120,p.hl);
       lHL(t.hl2||'TIME',PAD,440,120,p.hl);
       lAccLine(PAD,470,55);
-      if(t.bdy){let by2=560;(t.bdy||'').split('\n').forEach(l=>{lTx(l,PAD,by2,34,p.mu);by2+=52;});}
+      if(t.bdy){let by2=560;( tx.bdy||'').split('\n').forEach(l=>{lTx(l,PAD,by2,34,p.mu);by2+=52;});}
 
       const cardX=PAD, cardY=750, cardW=W-PAD*2, cardH=1000;
 
@@ -1262,7 +1276,7 @@ function render(cv, st){
         ctx.restore();
 
         // Parse stats from sub: "Label|Value|Delta" per line
-        const statLines=(t.sub||'Reichweite|12.458|+18%\nFollower|4.821|+240\nSaves|892|+31%').split('\n').filter(Boolean);
+        const statLines=(tx.sub||'Reichweite|12.458|+18%\nFollower|4.821|+240\nSaves|892|+31%').split('\n').filter(Boolean);
         const statRows=statLines.map(l=>{ const[lb,val,delta]=l.split('|'); return{lb:lb||'',val:val||'—',delta:delta||''}; });
 
         // Header
@@ -1337,7 +1351,7 @@ function render(cv, st){
       lHL(t.hl1||'SUPPLEMENTS',PAD,330,100,p.hl);
       lAccLine(PAD,355,55);
       let y=440;
-      (t.sub||'').split('\n').filter(Boolean).forEach(item=>{
+      ( tx.sub||'').split('\n').filter(Boolean).forEach(item=>{
         ctx.beginPath();ctx.arc(PAD+18,y-8,18,0,Math.PI*2);ctx.strokeStyle=p.mu+'66';ctx.lineWidth=1.5;ctx.stroke();
         lTx(item,PAD+48,y,34,p.mu);y+=72;
       });
@@ -1349,7 +1363,7 @@ function render(cv, st){
       lHL(t.hl2||'RECAP',PAD,460,110,p.hl);
       lAccLine(PAD,488,55);
       let cy=580;
-      (t.sub||'').split('\n').filter(Boolean).forEach(item=>{
+      ( tx.sub||'').split('\n').filter(Boolean).forEach(item=>{
         lCheck(PAD,cy,item,true); cy+=72;
       });
       if(t.bdy){
@@ -1366,7 +1380,7 @@ function render(cv, st){
       lAccLine(PAD,568,55);
       let y=650;
       ctx.fillStyle=p.fa;ctx.fillRect(PAD,y,W-PAD*2,1);y+=20;
-      (t.sub||'').split('\n').filter(Boolean).forEach(row=>{
+      ( tx.sub||'').split('\n').filter(Boolean).forEach(row=>{
         const[left,right]=row.split('|');
         lTx(left||'',PAD,y+34,30,p.hl);
         lTx('oder',W/2-55,y+34,26,p.mu);
@@ -1387,7 +1401,7 @@ function render(cv, st){
       // Chat bubble
       ctx.font='120px serif';ctx.fillStyle=p.mu+'33';ctx.fillText('💬',PAD+100,780);
       let y=860;
-      (t.bdy||'').split('\n').forEach(l=>{lTx(l,PAD,y,34,l?p.mu:p.mu);y+=l?54:26;});
+      ( tx.bdy||'').split('\n').forEach(l=>{lTx(l,PAD,y,34,l?p.mu:p.mu);y+=l?54:26;});
       if(t.cta){ctx.font=`900 90px ${f}`;ctx.fillStyle=p.mu+'55';ctx.fillText(t.cta,PAD+300,H-200);}
       break;
     }
@@ -1396,10 +1410,10 @@ function render(cv, st){
       lHL(t.hl1||'DAS',PAD,y,130,p.hl);y+=140;
       lHL(t.hl2||'EXPERIMENT',PAD,y,130,p.hl);y+=145;
       lAccLine(PAD,y+5,55);y+=55;
-      (t.bdy||'4 Wochen.\n2 Videos pro Woche.\n1 Ziel: Reichweite testen.').split('\n').forEach(l=>{lTx(l,PAD,y,36,p.mu);y+=58;});
+      (tx.bdy||'4 Wochen.\n2 Videos pro Woche.\n1 Ziel: Reichweite testen.').split('\n').forEach(l=>{lTx(l,PAD,y,36,p.mu);y+=58;});
       // Handwritten accent
       ctx.font=`italic 700 100px 'Caveat',cursive`;ctx.fillStyle=p.acc;
-      ctx.fillText(t.cta||"Los geht's!",PAD,H-150);
+      ctx.fillText(tx.cta||"Los geht's!",PAD,H-150);
       break;
     }
   }
@@ -1479,66 +1493,76 @@ function buildLeft(){
 // BUILD RIGHT PANEL
 // ══════════════════════════════════════════════════════════════════
 function buildRight(){
-  const t=S.texts;
+  const tx=S.texts;
   const li=S.cp.startsWith('li-');
   const p=CP[S.cp];
   const isListTpl=['d-list','d-hook','d-day','d-mindset','l-morning','l-workmode','l-setup','l-content','l-3things','l-evening','l-suppl','l-recap','l-this-that'].includes(S.tpl);
 
   document.getElementById('rs').innerHTML=`
     <div class="fg">
-      <div class="fl">Foto Upload</div>
+      <div class="fl">${t('photoUpload')}</div>
       <div class="uz"><input type="file" accept="image/*" onchange="handlePhoto(event)">
         <div class="uico">📷</div>
-        <div class="utxt">Foto klicken oder ziehen<br><span style="color:#333">JPG PNG HEIC</span></div>
+        <div class="utxt">${LANG==='de'?'Klicken oder ziehen':'Click or drag'}<br><span style="color:#333">JPG PNG HEIC</span></div>
       </div>
       <img id="pthumb" class="pthumb" ${S.photo?'style="display:block"':''}>
     </div>
     ${S.photo?`
     <div class="fg">
-      <div class="fl">Foto Zoom & Position</div>
+      <div class="fl">${t('zoom')} & Position</div>
       <div style="background:#0c0c0e;border:1px solid var(--brd);border-radius:6px;padding:8px 10px;font-size:8px;color:var(--t2);line-height:1.6;margin-bottom:4px">
-        🖱 <b style="color:var(--t1)">Ziehen</b> auf dem Vorschaubild zum Verschieben<br>
-        ⚲ <b style="color:var(--t1)">Scroll</b> auf dem Bild zum Zoomen
+        ${t('dragHint')}
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-        <div class="fl" style="margin:0">Zoom</div>
+        <div class="fl" style="margin:0">${t('zoom')}</div>
         <div style="display:flex;align-items:center;gap:6px">
           <span class="sv" id="scv">${Math.round((S.photoScale??1)*100)}%</span>
-          <button onclick="resetPhoto()" style="padding:2px 8px;background:var(--s2);border:1px solid var(--brd);color:var(--t2);font-family:Montserrat;font-size:8px;border-radius:3px;cursor:pointer" onmouseover="this.style.borderColor='var(--acc)'" onmouseout="this.style.borderColor='var(--brd)'">Reset</button>
+          <button onclick="resetPhoto()" style="padding:2px 8px;background:var(--s2);border:1px solid var(--brd);color:var(--t2);font-family:var(--font-sans);font-size:8px;border-radius:3px;cursor:pointer">${t('reset')}</button>
         </div>
       </div>
       <input type="range" class="sl" id="scsl" min="0.5" max="4.0" step="0.05" value="${S.photoScale??1.0}" oninput="setScale(this.value)">
     </div>
     <div class="fg">
-      <div style="display:flex;justify-content:space-between"><div class="fl">Overlay Dichte</div><div class="sv" id="opv">${Math.round(S.op*100)}%</div></div>
+      <div style="display:flex;justify-content:space-between"><div class="fl">${t('overlay')}</div><div class="sv" id="opv">${Math.round(S.op*100)}%</div></div>
       <input type="range" class="sl" min="0" max="100" value="${Math.round(S.op*100)}" oninput="setOp(this.value)">
     </div>`:''}
-    <div style="display:flex;flex-direction:column;gap:6px">
-      <div class="trow"><span class="tlbl">Film Grain</span><div class="tog ${S.grain?'on':''}" onclick="togGrain(this)"></div></div>
+    <div style="display:flex;flex-direction:column;gap:7px">
+      <div class="trow"><span class="tlbl">${t('grain')}</span><div class="tog ${S.grain?'on':''}" onclick="togGrain(this)"></div></div>
+      <div class="trow">
+        <span class="tlbl">${LANG==='de'?'Slide-Nummer anzeigen':'Show slide number'}</span>
+        <div class="tog ${S.showNum?'on':''}" onclick="togNum(this)"></div>
+      </div>
     </div>
+    ${S.showNum?`
     <div class="fg">
-      <div class="fl">Schriftart</div>
+      <div class="fl">${LANG==='de'?'Nummer / Text (leer = aus Template)':'Number / Text (empty = from template)'}</div>
+      <input class="fi" value="${(S.customNum||'').replace(/"/g,'&quot;')}"
+        placeholder="${LANG==='de'?'z.B. 01 oder leer lassen':'e.g. 01 or leave empty'}"
+        oninput="S.customNum=this.value;raf()">
+    </div>`:''}
+    <div class="fg">
+      <div class="fl">${t('font')}</div>
       <div class="fbr">${Object.entries(FONTS).map(([id,f])=>`
         <div class="fb ${S.font===id?'on':''}" style="font-family:${f.fam}" onclick="setFont('${id}')">${f.lbl}</div>`).join('')}
       </div>
     </div>
     <div class="fg">
-      <div class="fl">Headline 1</div>
-      <input class="fi" value="${(t.hl1||'').replace(/"/g,'&quot;')}" oninput="upd('hl1',this.value)">
-      <div class="fl" style="margin-top:3px">Farbe</div>
+      <div class="fl">${t('hl1')}</div>
+      <input class="fi" value="${(tx.hl1||'').replace(/"/g,'&quot;')}" oninput="upd('hl1',this.value)">
+      <div class="fl" style="margin-top:3px">${t('colorLabel')}</div>
       <div class="cbr">${['white','accent','muted'].map(col=>`
         <div class="cb ${S.h1c===col?'on':''}"
-          style="background:${col==='accent'?p.acc+'22':col==='muted'?'#1a1a1a':'#1a1a1a'};color:${col==='accent'?p.acc:col==='muted'?'#888':'#eee'}"
-          onclick="setH1C('${col}')">${col==='white'?'Weiß':col==='accent'?'Farbe':'Grau'}</div>`).join('')}
+          style="background:${col==='accent'?p.acc+'22':'#1a1a1a'};color:${col==='accent'?p.acc:col==='muted'?'#888':'#eee'}"
+          onclick="setH1C('${col}')">${col==='white'?t('white'):col==='accent'?t('accent'):t('gray')}</div>`).join('')}
       </div>
     </div>
     <div class="fg">
-      <div class="fl">Headline 2</div>
-      <textarea class="fta" style="height:44px" oninput="upd('hl2',this.value)">${(t.hl2||'').replace(/</g,'&lt;')}</textarea>
+      <div class="fl">${t('hl2')}</div>
+      <textarea class="fta" style="height:44px" oninput="upd('hl2',this.value)">${(tx.hl2||'').replace(/</g,'&lt;')}</textarea>
       <div class="cbr">${['white','accent','muted'].map(col=>`
         <div class="cb ${S.h2c===col?'on':''}"
-          style="background:${col==='accent'?p.acc+'22':col==='muted'?'#1a1a1a':'#1a1a1a'};color:${col==='accent'?p.acc:col==='muted'?'#888':'#eee'}"
-          onclick="setH2C('${col}')">${col==='white'?'Weiß':col==='accent'?'Farbe':'Grau'}</div>`).join('')}
+          style="background:${col==='accent'?p.acc+'22':'#1a1a1a'};color:${col==='accent'?p.acc:col==='muted'?'#888':'#eee'}"
+          onclick="setH2C('${col}')">${col==='white'?t('white'):col==='accent'?t('accent'):t('gray')}</div>`).join('')}
       </div>
     </div>
     ${S.tpl==='l-screen'?`
@@ -1556,37 +1580,37 @@ function buildRight(){
       <button onclick="clearScreenPhoto()" style="padding:3px 10px;background:transparent;border:1px solid #5a2525;color:#c00;font-family:Montserrat;font-size:8px;border-radius:3px;cursor:pointer">✕ Entfernen</button>
       `:`
       <div class="fl" style="margin-bottom:3px">Statistiken (Label|Zahl|Änderung pro Zeile)</div>
-      <textarea class="fta" style="height:80px;font-family:monospace;font-size:10px" oninput="upd('sub',this.value)" placeholder="Reichweite|12.458|+18%&#10;Follower|4.821|+240&#10;Saves|892|+31%">${(t.sub||'').replace(/</g,'&lt;')}</textarea>
+      <textarea class="fta" style="height:80px;font-family:monospace;font-size:10px" oninput="upd('sub',this.value)" placeholder="Reichweite|12.458|+18%&#10;Follower|4.821|+240&#10;Saves|892|+31%">${( tx.sub||'').replace(/</g,'&lt;')}</textarea>
       <div style="font-size:8px;color:var(--t3);margin-top:3px">Erste Zeile = große Zahl · weitere Zeilen = kleines Raster</div>
       `}
       <div class="fg" style="margin-top:8px">
         <div class="fl">Untertitel (unter Headline)</div>
-        <textarea class="fta" style="height:44px" oninput="upd('bdy',this.value)">${(t.bdy||'').replace(/</g,'&lt;')}</textarea>
+        <textarea class="fta" style="height:44px" oninput="upd('bdy',this.value)">${( tx.bdy||'').replace(/</g,'&lt;')}</textarea>
       </div>
     </div>
     `:''}
     ${isListTpl&&S.tpl!=='l-screen'?`
     <div class="fg">
       <div class="fl">Liste / Zeitplan (Item|Detail pro Zeile)</div>
-      <textarea class="fta" style="height:90px" oninput="upd('sub',this.value)">${(t.sub||'').replace(/</g,'&lt;')}</textarea>
+      <textarea class="fta" style="height:90px" oninput="upd('sub',this.value)">${( tx.sub||'').replace(/</g,'&lt;')}</textarea>
     </div>`:(S.tpl!=='l-screen'?`
     <div class="fg">
       <div class="fl">Sub Text</div>
-      <textarea class="fta" oninput="upd('sub',this.value)">${(t.sub||'').replace(/</g,'&lt;')}</textarea>
+      <textarea class="fta" oninput="upd('sub',this.value)">${(tx.sub||'').replace(/</g,'&lt;')}</textarea>
     </div>
     <div class="fg">
-      <div class="fl">Body Text</div>
-      <textarea class="fta" oninput="upd('bdy',this.value)">${(t.bdy||'').replace(/</g,'&lt;')}</textarea>
+      <div class="fl">${t('bodyText')}</div>
+      <textarea class="fta" oninput="upd('bdy',this.value)">${(tx.bdy||'').replace(/</g,'&lt;')}</textarea>
     </div>`:'')}
     ${S.tpl==='d-progress'||S.tpl==='l-progress'?`
-    <div class="fg"><div class="fl">Aktive Woche (1-4) / Prozent</div>
-    <input class="fi" type="number" min="1" max="100" value="${t.sub||'2'}" oninput="upd('sub',this.value)"></div>
-    <div class="fg"><div class="fl">Status Text</div>
-    <textarea class="fta" oninput="upd('bdy',this.value)">${(t.bdy||'').replace(/</g,'&lt;')}</textarea></div>`:''}
-    <div class="fg"><div class="fl">CTA Text</div><input class="fi" value="${(t.cta||'').replace(/"/g,'&quot;')}" oninput="upd('cta',this.value)"></div>
+    <div class="fg"><div class="fl">${t('weekLabel')}</div>
+    <input class="fi" type="number" min="1" max="100" value="${tx.sub||'2'}" oninput="upd('sub',this.value)"></div>
+    <div class="fg"><div class="fl">${t('statusText')}</div>
+    <textarea class="fta" oninput="upd('bdy',this.value)">${(tx.bdy||'').replace(/</g,'&lt;')}</textarea></div>`:''}
+    <div class="fg"><div class="fl">${t('ctaText')}</div><input class="fi" value="${(tx.cta||'').replace(/"/g,'&quot;')}" oninput="upd('cta',this.value)"></div>
     <div class="two">
-      <div class="fg"><div class="fl">Brand Label</div><input class="fi" value="${(t.brand||'').replace(/"/g,'&quot;')}" oninput="upd('brand',this.value)"></div>
-      <div class="fg"><div class="fl">Handle</div><input class="fi" value="${(t.handle||'').replace(/"/g,'&quot;')}" oninput="upd('handle',this.value)"></div>
+      <div class="fg"><div class="fl">${t('brandLabel')}</div><input class="fi" value="${(tx.brand||'').replace(/"/g,'&quot;')}" oninput="upd('brand',this.value)"></div>
+      <div class="fg"><div class="fl">${t('handle')}</div><input class="fi" value="${(tx.handle||'').replace(/"/g,'&quot;')}" oninput="upd('handle',this.value)"></div>
     </div>
   `;
   // Restore photo thumb
@@ -1615,17 +1639,19 @@ function goSlide(i){
   S.photo=sl.photo||null;S._thumbSrc=sl._thumbSrc||null;
   S.photoX=sl.photoX??0;S.photoY=sl.photoY??0;S.photoScale=sl.photoScale??1.0;
   S.screenPhoto=sl.screenPhoto||null;S.screenX=sl.screenX||0;S.screenY=sl.screenY||0;
-  S.op=sl.op??0.55;
-  S.grain=sl.grain!==false;S.h1c=sl.h1c||'white';S.h2c=sl.h2c||'accent';
+  S.op=sl.op??0.55; S.grain=sl.grain!==false;
+  S.h1c=sl.h1c||'white';S.h2c=sl.h2c||'accent';
+  S.showNum=sl.showNum!==false;S.customNum=sl.customNum||'';
   S.texts={...sl.texts};
-  updateDragOverlay();
-  buildLeft();buildRight();buildThumbs();raf();
+  updateDragOverlay();buildLeft();buildRight();buildThumbs();raf();
 }
 function saveSlide(){
   S.slides[S.cur]={tpl:S.tpl,cp:S.cp,font:S.font,photo:S.photo,_thumbSrc:S._thumbSrc,
     photoX:S.photoX,photoY:S.photoY,photoScale:S.photoScale,
     screenPhoto:S.screenPhoto,screenX:S.screenX,screenY:S.screenY,
-    op:S.op,grain:S.grain,h1c:S.h1c,h2c:S.h2c,texts:{...S.texts}};
+    op:S.op,grain:S.grain,h1c:S.h1c,h2c:S.h2c,
+    showNum:S.showNum,customNum:S.customNum,
+    texts:{...S.texts}};
 }
 function addSlide(){
   saveSlide();
@@ -1643,7 +1669,7 @@ function delSlide(){if(S.slides.length<=1)return;S.slides.splice(S.cur,1);S.cur=
 // ══════════════════════════════════════════════════════════════════
 // INTERACTIONS
 // ══════════════════════════════════════════════════════════════════
-function buildCurrent(){return{tpl:S.tpl,cp:S.cp,font:S.font,photo:S.photo,photoX:S.photoX,photoY:S.photoY,photoScale:S.photoScale,screenPhoto:S.screenPhoto,screenX:S.screenX,screenY:S.screenY,op:S.op,grain:S.grain,h1c:S.h1c,h2c:S.h2c,texts:S.texts};}
+function buildCurrent(){return{tpl:S.tpl,cp:S.cp,font:S.font,photo:S.photo,photoX:S.photoX,photoY:S.photoY,photoScale:S.photoScale,screenPhoto:S.screenPhoto,screenX:S.screenX,screenY:S.screenY,op:S.op,grain:S.grain,h1c:S.h1c,h2c:S.h2c,showNum:S.showNum,customNum:S.customNum,texts:S.texts};}
 function raf(){requestAnimationFrame(()=>{render(document.getElementById('mc'),buildCurrent());refreshMobPanel();});}
 
 function setMode(m,btn){
@@ -1696,6 +1722,7 @@ function setOp(v){S.op=v/100;document.getElementById('opv').textContent=v+'%';ra
 function setScale(v){S.photoScale=parseFloat(v);document.getElementById('scv').textContent=Math.round(parseFloat(v)*100)+'%';raf();}
 function resetPhoto(){S.photoX=0;S.photoY=0;S.photoScale=1.0;const sc=document.getElementById('scv');if(sc)sc.textContent='100%';const sl=document.getElementById('scsl');if(sl)sl.value=1.0;raf();}
 function togGrain(el){S.grain=!S.grain;el.classList.toggle('on');raf();}
+function togNum(el){S.showNum=!S.showNum;el.classList.toggle('on');buildRight();raf();}
 function toggleMock(){S.mock=!S.mock;document.getElementById('pmock').style.display=S.mock?'block':'none';}
 function setH1C(c){S.h1c=c;buildRight();raf();}
 function setH2C(c){S.h2c=c;buildRight();raf();}
